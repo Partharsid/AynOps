@@ -3,6 +3,8 @@ import whois
 import re
 import nmap
 import dns.resolver
+import ipaddress
+import os
 import ssl
 import socket
 import requests
@@ -17,6 +19,31 @@ mcp = FastMCP("CyberSecurity-MCP-Server")
 def is_valid_domain(domain: str) -> bool:
     pattern = r"^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$"
     return re.match(pattern, domain) is not None
+
+def get_cvss_details(cve: dict) -> dict:
+    metrics = cve.get("metrics", {})
+    metric_groups = (
+        metrics.get("cvssMetricV31")
+        or metrics.get("cvssMetricV30")
+        or metrics.get("cvssMetricV2")
+        or []
+    )
+
+    if not metric_groups:
+        return {"severity": "Unknown", "score": None}
+
+    metric = metric_groups[0]
+    cvss_data = metric.get("cvssData", {})
+
+    return {
+        "severity": metric.get("baseSeverity") or cvss_data.get("baseSeverity") or "Unknown",
+        "score": cvss_data.get("baseScore"),
+    }
+
+def get_english_description(cve: dict) -> str:
+    descriptions = cve.get("descriptions", [])
+    english = next((item for item in descriptions if item.get("lang") == "en"), None)
+    return english.get("value", "") if english else ""
 
 # TOOL 1 — WHOIS LOOKUP
 @mcp.tool()
@@ -368,8 +395,114 @@ def tech_stack_detect(domain: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
+# TOOL 6 — CVE LOOKUP
+@mcp.tool()
+def cve_lookup(software: str, version: str) -> dict:
+    """
+    Look up known CVEs for a software name and version using the NVD API.
+    """
+    software = software.strip()
+    version = version.strip()
+
+    if not software or not version:
+        return {"success": False, "error": "Software and version are required"}
+
+    try:
+        response = requests.get(
+            "https://services.nvd.nist.gov/rest/json/cves/2.0",
+            params={"keywordSearch": f"{software} {version}"},
+            timeout=15,
+            headers={"User-Agent": "CyberSecurity-MCP-Server/1.0"},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        cves = []
+        for item in data.get("vulnerabilities", []):
+            cve = item.get("cve", {})
+            cvss = get_cvss_details(cve)
+            cves.append({
+                "cve_id": cve.get("id"),
+                "severity": cvss["severity"],
+                "score": cvss["score"],
+                "published": cve.get("published"),
+                "last_modified": cve.get("lastModified"),
+                "description": get_english_description(cve),
+            })
+
+        return {
+            "success": True,
+            "software": software,
+            "version": version,
+            "total_results": data.get("totalResults", len(cves)),
+            "cves": cves,
+        }
+
+    except requests.exceptions.HTTPError as e:
+        return {"success": False, "error": f"NVD API request failed: {str(e)}"}
+    except requests.exceptions.Timeout:
+        return {"success": False, "error": "NVD API request timed out"}
+    except requests.exceptions.RequestException as e:
+        return {"success": False, "error": f"Could not connect to NVD API: {str(e)}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# TOOL 7 — IP REPUTATION CHECK
+@mcp.tool()
+def ip_reputation(ip_address: str) -> dict:
+    """
+    Check whether an IP address is reported as malicious using AbuseIPDB.
+    Requires ABUSEIPDB_API_KEY in the environment.
+    """
+    try:
+        ip = str(ipaddress.ip_address(ip_address.strip()))
+    except ValueError:
+        return {"success": False, "error": "Invalid IP address format"}
+
+    api_key = os.getenv("ABUSEIPDB_API_KEY")
+    if not api_key:
+        return {
+            "success": False,
+            "error": "ABUSEIPDB_API_KEY environment variable is required",
+        }
+
+    try:
+        response = requests.get(
+            "https://api.abuseipdb.com/api/v2/check",
+            params={"ipAddress": ip, "maxAgeInDays": 90},
+            headers={"Key": api_key, "Accept": "application/json"},
+            timeout=15,
+        )
+        response.raise_for_status()
+        data = response.json().get("data", {})
+
+        abuse_score = data.get("abuseConfidenceScore", 0)
+        return {
+            "success": True,
+            "ip": ip,
+            "is_malicious": abuse_score >= 25,
+            "abuse_confidence_score": abuse_score,
+            "total_reports": data.get("totalReports", 0),
+            "country": data.get("countryCode"),
+            "isp": data.get("isp"),
+            "domain": data.get("domain"),
+            "usage_type": data.get("usageType"),
+            "last_reported_at": data.get("lastReportedAt"),
+        }
+
+    except requests.exceptions.HTTPError as e:
+        return {"success": False, "error": f"AbuseIPDB API request failed: {str(e)}"}
+    except requests.exceptions.Timeout:
+        return {"success": False, "error": "AbuseIPDB API request timed out"}
+    except requests.exceptions.RequestException as e:
+        return {"success": False, "error": f"Could not connect to AbuseIPDB API: {str(e)}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ─────────────────────────────────────────────
-# TOOL 6 — FULL RECON (runs all 5 tools)
+# TOOL 8 — FULL RECON (runs all 5 tools)
 # ─────────────────────────────────────────────
 
 @mcp.tool()

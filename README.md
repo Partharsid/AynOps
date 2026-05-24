@@ -23,6 +23,8 @@ This is a **local MCP server** — it runs on your machine and connects to Claud
 | `port_scan` | Nmap-powered port scanner with service/version detection and security warnings |
 | `ssl_inspect` | Inspect SSL/TLS certificate — issuer, expiry, cipher strength, SANs, TLS version |
 | `tech_stack_detect` | Fingerprint web server, CMS, JS frameworks, CDN, analytics, and security headers |
+| `cve_lookup` | Search the NVD database for known CVEs affecting a software name and version |
+| `ip_reputation` | Check whether an IP address has AbuseIPDB abuse reports |
 | `full_recon` | Orchestrates all 5 tools in parallel and returns combined results for Claude to analyze |
 
 ---
@@ -151,7 +153,11 @@ Run DNS enumeration on github.com
 Scan ports on scanme.nmap.org
 Inspect the SSL certificate of stripe.com
 Detect the tech stack of wordpress.org
+Look up CVEs for apache 2.4.49
+Check the reputation of IP 1.2.3.4
 ```
+
+> `ip_reputation` requires an AbuseIPDB API key in the `ABUSEIPDB_API_KEY` environment variable.
 
 ### Port scan types
 

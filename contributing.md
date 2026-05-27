@@ -72,7 +72,6 @@ Pick one and open a PR:
    ```bash
    fastmcp dev inspector main.py
    ```
-5. Add tests to `test_security_tools.py` — mock external APIs so tests don't need live connections
 6. Update the tools table in `README.md`
 7. Update `requirements.txt` if you added a new dependency
 8. Update '.env.example' if any tool needs an api key
@@ -89,7 +88,6 @@ Before submitting make sure:
 - [ ] Returns `{"success": True/False, ...}` on all code paths
 - [ ] Exceptions handled with `try/except` — server must never crash
 - [ ] Dependencies minimal — reuse existing libraries where possible
-- [ ] Tests added to `test_security_tools.py` with mocked APIs
 - [ ] Tools table updated in `README.md`
 - [ ] `requirements.txt` updated if new dependency added
 - [ ] `.env.example` updated if needed
@@ -104,16 +102,6 @@ Before submitting make sure:
 - **Dependencies** — check if a library is already used before adding a new one
 - **Legal** — use `scanme.nmap.org` for port scanning tests — the only public host officially permitted for Nmap testing
 - **API keys** — never hardcode keys; use environment variables like `os.getenv("YOUR_API_KEY")`
-
----
-
-## 🧪 Running Tests
-
-```bash
-python -m unittest test_security_tools.py
-```
-
-All tests should pass before opening a PR. Tests use mocked APIs so no internet or API keys are needed.
 
 ---
 

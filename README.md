@@ -32,7 +32,7 @@ This is a **local MCP server** — it runs entirely on your machine. Your data n
 | `cve_lookup` | Search NVD for known CVEs by software name and version (no API key required) |
 | `ip_reputation` | Check if an IP is flagged as malicious via AbuseIPDB (api key requied) |
 | `full_recon` | Runs all 5 core tools in parallel and returns combined results for Claude to analyze |
-
+| `asn_lookup` | Autonomous System Number (ASN) and network ownership lookup — identifies hosting provider, ISP, organization, geolocation, and infrastructure ownership for domains or IP addresses |
 ---
 
 ## 📸 Demo
@@ -138,7 +138,8 @@ Add this configuration:
       "command": "C:\\full\\path\\to\\Cybersecurity-MCP-Server\\.venv\\Scripts\\python.exe",
       "args": ["C:\\full\\path\\to\\Cybersecurity-MCP-Server\\main.py"],
       "env": {
-        "ABUSEIPDB_API_KEY": "your-api-key-here"
+        "ABUSEIPDB_API_KEY": "your-api-key-here",
+        "IP_API_KEY": "your-api-key-here"
       }
     }
   }
@@ -153,7 +154,8 @@ Add this configuration:
       "command": "/full/path/to/Cybersecurity-MCP-Server/.venv/bin/python3",
       "args": ["/full/path/to/Cybersecurity-MCP-Server/main.py"],
       "env": {
-        "ABUSEIPDB_API_KEY": "your-api-key-here"
+        "ABUSEIPDB_API_KEY": "your-api-key-here",
+        "IP_API_KEY": "your-api-key-here"
       }
     }
   }
@@ -162,7 +164,7 @@ Add this configuration:
 
 > ⚠️ Always use the **full absolute path** to your `.venv` Python executable — not just `python` or `python3`. Claude Desktop may use a different Python installation otherwise.
 
-> **Note:** `ABUSEIPDB_API_KEY` is only required for the `ip_reputation` tool. All other 7 tools work without it. Get a free key at [abuseipdb.com](https://www.abuseipdb.com) (free tier: 1,000 requests/day).
+> **Note:** `ABUSEIPDB_API_KEY` is only required for the `ip_reputation` tool. Get a free key at [abuseipdb.com](https://www.abuseipdb.com) (free tier: 1,000 requests/day). `IP_API_KEY` is only required for the `asn_lookup` tool. get a free key at [ipapi.com](https://ipapi.com/)
 
 ### Step 6 — Restart Claude Desktop
 
@@ -190,6 +192,7 @@ Detect the tech stack of wordpress.org
 Look up CVEs for apache 2.4.49
 Look up CVEs for log4j 2.14.1
 Check the reputation of IP 1.2.3.4
+ASN Lookup for google.com
 ```
 
 ### Port scan types
@@ -222,15 +225,7 @@ What do the open ports mean from an attacker's perspective?
 Is this SSL configuration strong enough for a financial services company?
 Cross-reference the open ports with known CVEs for the detected services.
 ```
-
 ---
-
-## 🧪 Running Tests
-
-```bash
-python -m unittest test_security_tools.py
-```
-
 Expected output:
 ```
 ...
@@ -265,9 +260,8 @@ Intended for:
 
 ```
 Cybersecurity-MCP-Server/
-├── main.py                  # MCP server — all 8 tools
+├── main.py                  # MCP server
 ├──.env.example              # For API testing
-├── test_security_tools.py   # Unit tests with mocked APIs
 ├── requirements.txt         # Python dependencies
 ├── Dockerfile               # For deployment
 ├── contributing.md          # Contribution guide

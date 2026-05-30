@@ -7,6 +7,10 @@ on:
 jobs:
   size:
     runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
+
     steps:
       - uses: actions/github-script@v7
         with:
@@ -18,6 +22,25 @@ jobs:
             if (lines < 50) label = "size: small";
             else if (lines < 200) label = "size: medium";
             else label = "size: large";
+
+            const existingLabels = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number
+            });
+
+            const sizeLabels = existingLabels.data
+              .filter(l => l.name.startsWith("size:"))
+              .map(l => l.name);
+
+            for (const old of sizeLabels) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                name: old
+              });
+            }
 
             await github.rest.issues.addLabels({
               owner: context.repo.owner,

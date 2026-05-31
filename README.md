@@ -16,8 +16,8 @@ A Model Context Protocol (MCP) server that gives Claude real-time cybersecurity 
   <a href="https://github.com/gaoharimran29-glitch/AynOps/network/members" target="_blank"><img src="https://img.shields.io/github/forks/gaoharimran29-glitch/AynOps?style=social" /></a>
   <a href="https://pypi.org/project/AynOps/" target="_blank"><img src="https://img.shields.io/pypi/v/Cybersecurity-MCP-Server?label=version" /></a>
   <a href="https://github.com/gaoharimran29-glitch/AynOps/issues" target="_blank"><img src="https://img.shields.io/github/issues/gaoharimran29-glitch/AynOps" /></a>
-  <a href="https://glama.ai/mcp/servers/gaoharimran29-glitch/Cybersecurity-MCP-Server">
-  <img src="https://glama.ai/mcp/servers/gaoharimran29-glitch/Cybersecurity-MCP-Server/badges/score.svg" /></a>
+  <a href="https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps">
+  <img src="https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps/badges/score.svg" /></a>
 </div>
 
 ---
@@ -278,8 +278,8 @@ Intended for:
 
 <div align="left">
 
-<a href="https://glama.ai/mcp/servers/gaoharimran29-glitch/Cybersecurity-MCP-Server">
-  <img src="https://glama.ai/mcp/servers/gaoharimran29-glitch/Cybersecurity-MCP-Server/badges/card.svg" />
+<a href="https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps">
+  <img src="https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps/badges/card.svg" />
 </a>
 
 </div>

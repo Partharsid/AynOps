@@ -19,7 +19,6 @@ A Model Context Protocol (MCP) server that gives Claude real-time cybersecurity 
   <a href="https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps">
   <img src="https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps/badges/score.svg" /></a>
 </div>
-
 ---
 
 ## What is this?
@@ -42,10 +41,11 @@ It is also listed on glama mcp registry.
 | `port_scan` | Nmap-powered scanner with service/version detection and security warnings |
 | `ssl_inspect` | SSL/TLS certificate — issuer, expiry, cipher strength, SANs, TLS version |
 | `tech_stack_detect` | Web server, CMS, JS frameworks, CDN, analytics, and security header scoring |
+| `cert_transparency` | Subdomain discovery via crt.sh Certificate Transparency logs with an automatic fallback to HackerTarget passive DNS on timeouts |
+| `asn_lookup` | Autonomous System Number (ASN) and network ownership lookup — identifies hosting provider, ISP, organization, geolocation, and infrastructure ownership for domains or IP addresses |
+| `full_recon` | Runs all 7 core tools in parallel and returns combined results for Claude to analyze |
 | `cve_lookup` | Search NVD for known CVEs by software name and version (no API key required) |
 | `ip_reputation` | Check if an IP is flagged as malicious via AbuseIPDB (api key requied) |
-| `full_recon` | Runs all 6 core tools in parallel and returns combined results for Claude to analyze |
-| `asn_lookup` | Autonomous System Number (ASN) and network ownership lookup — identifies hosting provider, ISP, organization, geolocation, and infrastructure ownership for domains or IP addresses |
 ---
 
 ## 📸 Demo
@@ -231,7 +231,7 @@ Scan scanme.nmap.org with service detection
 Do a complete security recon on reddit.com
 ```
 
-Claude will run all 6 core tools in parallel and deliver a full security analysis.
+Claude will run all core tools in parallel and deliver a full security analysis.
 
 ### Follow-up analysis
 
@@ -246,7 +246,7 @@ Cross-reference the open ports with known CVEs for the detected services.
 
 > **Only scan domains and IPs you own or have explicit written permission to scan.**
 
-- WHOIS, DNS, SSL, CVE, and tech stack lookups use **public data** — safe on any domain
+- All tools use **public data** — safe on any domain
 - Port scanning should only target **your own infrastructure** or authorized systems
 - The only public host officially permitted for Nmap testing is `scanme.nmap.org`
 - Unauthorized port scanning may be illegal in your jurisdiction

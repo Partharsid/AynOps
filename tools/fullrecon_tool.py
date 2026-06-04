@@ -7,12 +7,37 @@ from tools.asn_tool import asn_lookup
 from utils.helpers import is_valid_domain
 import concurrent.futures
 from datetime import datetime , timezone
+from tools.crt_sh_tool import cert_transparency
+
+## Instead of full crt log we will give less details in full_recon
+## If you want complete info run crt_sh_tool separately
+def ct_summary(domain: str) -> dict:
+    """
+    Lightweight CT log summary for full recon.
+    Avoids returning hundreds/thousands of certificates.
+    """
+    result = cert_transparency(domain)
+
+    if not result.get("success"):
+        return result
+
+    return {
+        "success": True,
+        "total_unique_subdomains": result.get(
+            "total_unique_subdomains",
+            len(result.get("unique_subdomains", []))
+        ),
+        "sample_subdomains": result.get(
+            "unique_subdomains",
+            []
+        )[:50]
+    }
 
 def full_recon(domain: str) -> dict:
     """
     Run all recon tools on a domain in parallel:
     WHOIS, DNS enumeration, port scan, SSL inspection,
-    and technology stack detection.
+    technology stack detection , asn lookup and certificate transparency search.
 
     Returns combined raw results. The MCP client (Claude)
     should generate summaries for each section.
@@ -36,7 +61,8 @@ def full_recon(domain: str) -> dict:
             ex.submit(run, "ports",    port_scan,          domain, "service"),
             ex.submit(run, "ssl",      ssl_inspect,        domain),
             ex.submit(run, "techstack",tech_stack_detect,  domain),
-            ex.submit(run, "asn" , asn_lookup, domain)
+            ex.submit(run, "asn" , asn_lookup, domain),
+            ex.submit(run, "ct_logs", ct_summary, domain)
         ]
         concurrent.futures.wait(futures)
 
@@ -47,7 +73,7 @@ def full_recon(domain: str) -> dict:
         "results": results,
         "instructions": (
             "Generate a 2-3 sentence summary for each tool's output "
-            "(whois_summary, dns_summary, ports_summary, ssl_summary, techstack_summary , asn_summary) "
+            "(whois_summary, dns_summary, ports_summary, ssl_summary, techstack_summary , asn_summary , ct_logs) "
             "and a final overall_summary of 4-5 sentences covering the full security posture. "
         )
     }

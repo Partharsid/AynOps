@@ -1,4 +1,4 @@
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import patch
 import unittest
 from tools.fullrecon_tool import full_recon
 
@@ -14,7 +14,9 @@ class TestFullRecon(unittest.TestCase):
     @patch("tools.fullrecon_tool.port_scan", return_value={"success": True, "results": []})
     @patch("tools.fullrecon_tool.ssl_inspect", return_value={"success": True, "certificate": {}})
     @patch("tools.fullrecon_tool.tech_stack_detect", return_value={"success": True, "technologies": {}})
-    def test_full_recon_calls_all_tools(self, mock_tech, mock_ssl, mock_ports, mock_dns, mock_whois):
+    @patch("tools.fullrecon_tool.asn_lookup", return_value={"success": True, "asn": "AS12345"})
+    @patch("tools.fullrecon_tool.ct_summary", return_value={"success": True, "total_unique_subdomains": 10, "sample_subdomains": ["api.example.com"]})
+    def test_full_recon_calls_all_tools(self, mock_ct, mock_asn, mock_tech, mock_ssl, mock_ports, mock_dns, mock_whois):
         result = full_recon("example.com")
 
         self.assertTrue(result["success"])
@@ -28,18 +30,25 @@ class TestFullRecon(unittest.TestCase):
         self.assertIn("ports", result["results"])
         self.assertIn("ssl", result["results"])
         self.assertIn("techstack", result["results"])
+        self.assertIn("asn", result["results"])
+        self.assertIn("ct_logs", result["results"])
 
         mock_whois.assert_called_once_with("example.com")
         mock_dns.assert_called_once_with("example.com")
         mock_ssl.assert_called_once_with("example.com")
         mock_tech.assert_called_once_with("example.com")
+        mock_ports.assert_called_once_with("example.com", "service")
+        mock_asn.assert_called_once_with("example.com")
+        mock_ct.assert_called_once_with("example.com")
 
     @patch("tools.fullrecon_tool.whois_lookup", side_effect=Exception("WHOIS exploded"))
     @patch("tools.fullrecon_tool.dns_enumeration", return_value={"success": True})
     @patch("tools.fullrecon_tool.port_scan", return_value={"success": True})
     @patch("tools.fullrecon_tool.ssl_inspect", return_value={"success": True})
     @patch("tools.fullrecon_tool.tech_stack_detect", return_value={"success": True})
-    def test_full_recon_tool_failure_isolated(self, mock_tech, mock_ssl, mock_ports, mock_dns, mock_whois):
+    @patch("tools.fullrecon_tool.asn_lookup", return_value={"success": True})
+    @patch("tools.fullrecon_tool.ct_summary", return_value={"success": True})
+    def test_full_recon_tool_failure_isolated(self, mock_ct , mock_asn , mock_tech, mock_ssl, mock_ports, mock_dns, mock_whois):
         """One tool crashing must not crash the whole recon."""
         result = full_recon("example.com")
 
@@ -47,12 +56,16 @@ class TestFullRecon(unittest.TestCase):
         # The failing tool should have an error, others should be fine
         self.assertFalse(result["results"]["whois"]["success"])
         self.assertTrue(result["results"]["dns"]["success"])
+        self.assertTrue(result["results"]["asn"]["success"])
+        self.assertTrue(result["results"]["ct_logs"]["success"])
 
     @patch("tools.fullrecon_tool.whois_lookup", return_value={"success": True})
     @patch("tools.fullrecon_tool.dns_enumeration", return_value={"success": True})
     @patch("tools.fullrecon_tool.port_scan", return_value={"success": True})
     @patch("tools.fullrecon_tool.ssl_inspect", return_value={"success": True})
     @patch("tools.fullrecon_tool.tech_stack_detect", return_value={"success": True})
+    @patch("tools.fullrecon_tool.asn_lookup", return_value={"success": True})
+    @patch("tools.fullrecon_tool.ct_summary", return_value={"success": True})
     def test_full_recon_scanned_at_is_iso_format(self, *_):
         from datetime import datetime
         result = full_recon("example.com")

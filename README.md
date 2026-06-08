@@ -1,21 +1,21 @@
 <div align="center">
     <picture>
-      <img alt="LangChain Logo" src=".github/images/logo.svg" width="90%">
+      <img alt="AynOps Logo" src="https://raw.githubusercontent.com/AynOps/AynOps/main/.github/images/logo.svg" width="90%">
     </picture>
 </div>
 
 <div align="center">
 <h3>
-A Model Context Protocol (MCP) server that gives Claude real-time cybersecurity reconnaissance capabilities. Instead of manually running tools across different terminals, just tell Claude "analyze google.com" and get a complete security breakdown instantly.
+A Model Context Protocol (MCP) server that gives AI Clients real-time cybersecurity reconnaissance capabilities. Instead of manually running tools across different terminals, just tell Claude "analyze google.com" and get a complete security breakdown instantly.
   </h3>
 </div>
 
 <div align="center">
   <a href="https://opensource.org/licenses/MIT" target="_blank"> <img src="https://img.shields.io/badge/license-MIT-green.svg" /></a>
-  <a href="https://github.com/gaoharimran29-glitch/AynOps" target="_blank"> <img src="https://img.shields.io/github/stars/gaoharimran29-glitch/AynOps?style=social" /></a>
-  <a href="https://github.com/gaoharimran29-glitch/AynOps/network/members" target="_blank"><img src="https://img.shields.io/github/forks/gaoharimran29-glitch/AynOps?style=social" /></a>
+  <a href="https://github.com/AynOps/AynOps" target="_blank"> <img src="https://img.shields.io/github/stars/AynOps/AynOps?style=social" /></a>
+  <a href="https://github.com/AynOps/AynOps/network/members" target="_blank"><img src="https://img.shields.io/github/forks/AynOps/AynOps?style=social" /></a>
   <a href="https://pypi.org/project/AynOps/" target="_blank"><img src="https://img.shields.io/pypi/v/Cybersecurity-MCP-Server?label=version" /></a>
-  <a href="https://github.com/gaoharimran29-glitch/AynOps/issues" target="_blank"><img src="https://img.shields.io/github/issues/gaoharimran29-glitch/AynOps" /></a>
+  <a href="https://github.com/AynOps/AynOps/issues" target="_blank"><img src="https://img.shields.io/github/issues/AynOps/AynOps" /></a>
   <a href="https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps">
   <img src="https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps/badges/score.svg" /></a>
 </div>
@@ -61,7 +61,7 @@ Claude: Found 2 critical CVEs for Apache 2.4.49:
 ```
 <div align="center">
     <picture>
-      <img alt="CVE Lookup tool" src=".github/images/single_tool.png" width="100%" , height="70%">
+      <img alt="CVE Lookup tool" src="https://raw.githubusercontent.com/AynOps/AynOps/main/.github/images/single_tool.png" width="100%" , height="70%">
     </picture>
 </div>
 
@@ -74,13 +74,13 @@ Claude: [calls full_recon → runs 6 tools in parallel → delivers full analysi
 
 <div align="center">
     <picture>
-      <img alt="Full recon tool" src=".github/images/full_recon1.png" width="100%" height="70%">
+      <img alt="Full recon tool" src="https://raw.githubusercontent.com/AynOps/AynOps/main/.github/images/full_recon1.png" width="100%" height="70%">
     </picture>
 </div>
 
 <div align="center">
     <picture>
-      <img alt="Full recon tool" src=".github/images/full_recon2.png" width="100%" height="70%">
+      <img alt="Full recon tool" src="https://raw.githubusercontent.com/AynOps/AynOps/main/.github/images/full_recon2.png" width="100%" height="70%">
     </picture>
 </div>
 
@@ -100,7 +100,7 @@ Claude: [calls full_recon → runs 6 tools in parallel → delivers full analysi
 ### Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/gaoharimran29-glitch/AynOps
+git clone https://github.com/AynOps/AynOps
 cd AynOps
 ```
 
@@ -150,7 +150,7 @@ Add this configuration:
 ```json
 {
   "mcpServers": {
-    "cybersecurity": {
+    "AynOps": {
       "command": "C:\\full\\path\\to\\AynOps\\.venv\\Scripts\\python.exe",
       "args": ["C:\\full\\path\\to\\AynOps\\server.py"],
       "env": {
@@ -166,7 +166,7 @@ Add this configuration:
 ```json
 {
   "mcpServers": {
-    "cybersecurity": {
+    "AynOps": {
       "command": "/full/path/to/AynOps/.venv/bin/python3",
       "args": ["/full/path/to/AynOps/server.py"],
       "env": {
@@ -195,6 +195,12 @@ What cybersecurity tools do you have available?
 Claude should list all tools.
 
 ---
+## 📦 Listed On
+
+| Registry | Link |
+|---|---|
+| Official MCP Registry | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AynOps/AynOps) |
+| Glama | [glama.ai/mcp/servers/...](https://glama.ai/mcp/servers/gaoharimran29-glitch/AynOps) |
 
 ## 🚀 Usage
 
@@ -288,6 +294,11 @@ Intended for:
 </a>
 
 </div>
+
+## PyPI Package
+mcp-name: io.github.AynOps/AynOps
+<br>
+Link:- https://pypi.org/project/AynOps/
 
 ## 🤝 Contributing
 

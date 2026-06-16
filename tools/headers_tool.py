@@ -40,8 +40,17 @@ def headers_analyzer(domain: str) -> dict:
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         req = urllib.request.Request(url, headers={"User-Agent": "AynOps-HeadersAnalyzer/1.0"})
-        with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
-            raw_headers = dict(resp.headers)
+        # Build an opener that follows redirects (HTTPRedirectHandler is default,
+        # but we explicitly ensure it's included) and captures the FINAL response
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPSHandler(context=ctx),
+            urllib.request.HTTPRedirectHandler(),
+        )
+        with opener.open(req, timeout=10) as resp:
+            # resp.url gives us the final URL after redirects
+            domain = resp.url.split("/")[2]
+            # Normalize all header keys to lowercase for consistent lookup
+            raw_headers = {k.lower(): v for k, v in resp.headers.items()}
     except urllib.error.URLError as e:
         return {"success": False, "error": f"Connection failed: {str(e)}"}
     except Exception as e:
@@ -50,7 +59,7 @@ def headers_analyzer(domain: str) -> dict:
     headers: dict[str, Any] = {}
 
     # --- Strict-Transport-Security ---
-    hsts = raw_headers.get("Strict-Transport-Security", "")
+    hsts = raw_headers.get("strict-transport-security", "")
     if hsts:
         hsts_lower = hsts.lower()
         issues = []
@@ -85,7 +94,13 @@ def headers_analyzer(domain: str) -> dict:
         }
 
     # --- Content-Security-Policy ---
-    csp = raw_headers.get("Content-Security-Policy", "")
+    csp = raw_headers.get("content-security-policy", "")
+    # Also check report-only variant if no enforcing CSP found
+    if not csp:
+        csp = raw_headers.get("content-security-policy-report-only", "")
+        report_only = True
+    else:
+        report_only = False
     if csp:
         csp_lower = csp.lower()
         issues = []
@@ -102,7 +117,12 @@ def headers_analyzer(domain: str) -> dict:
         if "default-src 'none'" not in csp_lower and "default-src 'self'" not in csp_lower:
             if not any(d in csp_lower for d in ["default-src 'self'", "default-src 'none'"]):
                 issues.append("No restrictive default-src directive found")
-                severity = max(severity, "medium")
+                if severity == "low":
+                    severity = "medium"
+        if report_only:
+            issues.insert(0, "CSP is report-only mode — violations are reported but not enforced")
+            if severity == "low":
+                severity = "medium"
         headers["content-security-policy"] = {
             "present": True,
             "value": csp[:200] + ("..." if len(csp) > 200 else ""),
@@ -118,7 +138,7 @@ def headers_analyzer(domain: str) -> dict:
         }
 
     # --- X-Frame-Options ---
-    xfo = raw_headers.get("X-Frame-Options", "")
+    xfo = raw_headers.get("x-frame-options", "")
     if xfo:
         xfo_upper = xfo.upper().strip()
         if xfo_upper in ("DENY", "SAMEORIGIN"):
@@ -144,7 +164,7 @@ def headers_analyzer(domain: str) -> dict:
         }
 
     # --- X-Content-Type-Options ---
-    xcto = raw_headers.get("X-Content-Type-Options", "")
+    xcto = raw_headers.get("x-content-type-options", "")
     if xcto and xcto.lower().strip() == "nosniff":
         headers["x-content-type-options"] = {
             "present": True,
@@ -161,7 +181,7 @@ def headers_analyzer(domain: str) -> dict:
         }
 
     # --- Referrer-Policy ---
-    rp = raw_headers.get("Referrer-Policy", "")
+    rp = raw_headers.get("referrer-policy", "")
     if rp:
         rp_lower = rp.lower().strip()
         good_policies = ["no-referrer", "strict-origin-when-cross-origin", "same-origin", "strict-origin"]
@@ -188,7 +208,7 @@ def headers_analyzer(domain: str) -> dict:
         }
 
     # --- Permissions-Policy ---
-    pp = raw_headers.get("Permissions-Policy", "")
+    pp = raw_headers.get("permissions-policy", "")
     if pp:
         headers["permissions-policy"] = {
             "present": True,
@@ -205,7 +225,7 @@ def headers_analyzer(domain: str) -> dict:
         }
 
     # --- Information disclosure headers
-    for hdr in ("Server", "X-Powered-By", "X-AspNet-Version", "X-Generator"):
+    for hdr in ("server", "x-powered-by", "x-aspnet-version", "x-generator"):
         val = raw_headers.get(hdr, "")
         if val:
             headers[hdr.lower().replace("-", "_")] = {

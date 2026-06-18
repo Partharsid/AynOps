@@ -55,7 +55,7 @@ def full_recon(domain: str) -> dict:
             results[name] = {"success": False, "error": str(e)}
 
     # Run all tools in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=7) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
         futures = [
             ex.submit(run, "whois",    whois_lookup,       domain),
             ex.submit(run, "dns",      dns_enumeration,    domain),

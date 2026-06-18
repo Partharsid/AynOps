@@ -1,3 +1,4 @@
+from tools.headers_tool import headers_analyzer
 from tools.whois_tool import whois_lookup
 from tools.dns_tool import dns_enumeration
 from tools.portscan_tool import port_scan
@@ -54,7 +55,7 @@ def full_recon(domain: str) -> dict:
             results[name] = {"success": False, "error": str(e)}
 
     # Run all tools in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
         futures = [
             ex.submit(run, "whois",    whois_lookup,       domain),
             ex.submit(run, "dns",      dns_enumeration,    domain),
@@ -62,7 +63,8 @@ def full_recon(domain: str) -> dict:
             ex.submit(run, "ssl",      ssl_inspect,        domain),
             ex.submit(run, "techstack",tech_stack_detect,  domain),
             ex.submit(run, "asn" , asn_lookup, domain),
-            ex.submit(run, "ct_logs", ct_summary, domain)
+            ex.submit(run, "ct_logs", ct_summary, domain),
+            ex.submit(run, "headers",  headers_analyzer,   domain),
         ]
         concurrent.futures.wait(futures)
 
@@ -73,7 +75,8 @@ def full_recon(domain: str) -> dict:
         "results": results,
         "instructions": (
             "Generate a 2-3 sentence summary for each tool's output "
-            "(whois_summary, dns_summary, ports_summary, ssl_summary, techstack_summary , asn_summary , ct_logs) "
+            "(whois_summary, dns_summary, ports_summary, ssl_summary, "
+            "techstack_summary, asn_summary, ct_logs, headers_summary) "
             "and a final overall_summary of 4-5 sentences covering the full security posture. "
         )
     }

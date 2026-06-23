@@ -1,6 +1,29 @@
 import dns.resolver
 from utils.helpers import is_valid_domain
 
+PUBLIC_RESOLVERS = ["1.1.1.1", "8.8.8.8"]
+
+
+def _clean_name(value) -> str:
+    return str(value).rstrip(".")
+
+
+def _format_txt_record(record) -> str:
+    chunks = getattr(record, "strings", None)
+    if chunks:
+        return "".join(
+            chunk.decode("utf-8") if isinstance(chunk, bytes) else str(chunk)
+            for chunk in chunks
+        )
+    return str(record)
+
+
+def _make_resolver() -> dns.resolver.Resolver:
+    resolver = dns.resolver.Resolver(configure=False)
+    resolver.nameservers = PUBLIC_RESOLVERS
+    return resolver
+
+
 def dns_enumeration(domain: str) -> dict:
     """
     Enumerate DNS records for a domain.
@@ -11,26 +34,31 @@ def dns_enumeration(domain: str) -> dict:
 
     record_types = ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA"]
     records = {}
+    resolver = _make_resolver()
 
     for rtype in record_types:
         try:
-            answers = dns.resolver.resolve(domain, rtype, lifetime=5)
+            answers = resolver.resolve(domain, rtype, lifetime=5, tcp=True)
             if rtype == "MX":
                 records[rtype] = [
-                    {"preference": r.preference, "exchange": str(r.exchange)}
+                    {"preference": r.preference, "exchange": _clean_name(r.exchange)}
                     for r in answers
                 ]
             elif rtype == "SOA":
                 r = answers[0]
                 records[rtype] = {
-                    "mname": str(r.mname),
-                    "rname": str(r.rname),
+                    "mname": _clean_name(r.mname),
+                    "rname": _clean_name(r.rname),
                     "serial": r.serial,
                     "refresh": r.refresh,
                     "retry": r.retry,
                     "expire": r.expire,
                     "minimum": r.minimum
                 }
+            elif rtype == "TXT":
+                records[rtype] = [_format_txt_record(r) for r in answers]
+            elif rtype in {"NS", "CNAME"}:
+                records[rtype] = [_clean_name(r) for r in answers]
             else:
                 records[rtype] = [str(r) for r in answers]
         except dns.resolver.NoAnswer:
@@ -47,7 +75,7 @@ def dns_enumeration(domain: str) -> dict:
     for sub in common_subdomains:
         try:
             full = f"{sub}.{domain}"
-            dns.resolver.resolve(full, "A", lifetime=3)
+            resolver.resolve(full, "A", lifetime=3, tcp=True)
             found_subdomains.append(full)
         except Exception:
             pass

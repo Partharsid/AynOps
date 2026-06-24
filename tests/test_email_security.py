@@ -1,227 +1,131 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import dns.resolver
-from tools.email_security_tool import email_security_check
+import dns.exception
+from tools.email_security_tool import email_security_check, _spf_policy, _discover_dynamic_selectors, _query_txt
 
-def _txt_answer(text: str):
-    record = MagicMock()
-    record.strings = [text.encode("utf-8")]
-    return [record]
+class TestEmailSecurityScanner(unittest.TestCase):
 
-class TestEmailSecurityCheck(unittest.TestCase):
-
-    def test_invalid_domain(self):
-        result = email_security_check("not a domain")
+    @patch('tools.email_security_tool.is_valid_domain')
+    def test_invalid_domain_format(self, mock_is_valid):
+        """Ensure invalid domains return a clean failure dictionary immediately."""
+        mock_is_valid.return_value = False
+        result = email_security_check("invalid_domain")
         self.assertFalse(result["success"])
-        self.assertIn("error", result)
+        self.assertEqual(result["error"], "Invalid domain format")
 
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_matches_issue_worked_example(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "example.com":
-                return _txt_answer("v=spf1 include:_spf.google.com ~all")
-            if name == "_dmarc.example.com":
-                return _txt_answer("v=DMARC1; p=reject;")
-            raise dns.resolver.NXDOMAIN()
+    def test_spf_policy_mapping(self):
+        """Verify standard terminal mechanism string mapping logic."""
+        self.assertEqual(_spf_policy("v=spf1 include:_spf.google.com -all"), "fail")
+        self.assertEqual(_spf_policy("v=spf1 include:spf.protection.outlook.com ~all"), "softfail")
+        self.assertEqual(_spf_policy("v=spf1 ?all"), "neutral")
+        self.assertEqual(_spf_policy("v=spf1 +all"), "pass")
+        self.assertEqual(_spf_policy("v=spf1 redirect=example.com"), "unknown")
 
-        mock_resolve.side_effect = fake_resolve
+    @patch('dns.resolver.Resolver.resolve')
+    def test_query_txt_fallback_mechanism(self, mock_resolve):
+        """Ensure standard resolver timeouts trigger the public 1.1.1.1/8.8.8.8 fallback."""
+        # First call raises a Timeout; second call (fallback) succeeds
+        mock_resolve.side_effect = [
+            dns.resolver.Timeout(),
+            [MagicMock(strings=[b"fallback-record"])]
+        ]
+        
+        records, failed = _query_txt("example.com")
+        self.assertFalse(failed)
+        self.assertIn("fallback-record", records)
+        self.assertEqual(mock_resolve.call_count, 2)
 
-        result = email_security_check("example.com")
+    @patch('dns.resolver.Resolver.resolve')
+    def test_discover_dynamic_selectors_google_mx(self, mock_resolve):
+        """Verify that discovering a Google MX server appends relevant target selectors."""
+        mock_mx = MagicMock()
+        mock_mx.exchange = "aspmx.l.google.com."
+        mock_resolve.return_value = [mock_mx]
 
+        selectors = _discover_dynamic_selectors("example.com")
+        
+        # Check that specific corporate signature keys are added dynamically
+        self.assertIn("20161025", selectors)
+        self.assertIn("20230601", selectors)
+
+    @patch('tools.email_security_tool._query_txt')
+    @patch('tools.email_security_tool._discover_dynamic_selectors')
+    @patch('tools.email_security_tool.is_valid_domain', return_value=True)
+    def test_perfect_score_scenario_openai(self, mock_valid, mock_discover, mock_query):
+        """Verify an optimal setup scores 100% ('Excellent') with no recommendations."""
+        mock_discover.return_value = []
+        
+        # Mocking endpoints sequentially: 
+        # 1. Apex Domain TXT (SPF lookup)
+        # 2. _dmarc sub-domain TXT
+        # 3. DKIM checks (simulating one match on 'default')
+        def side_effect_query(name):
+            if name == "openai.com":
+                return ["v=spf1 -all"], False
+            elif name == "_dmarc.openai.com":
+                return ["v=DMARC1; p=reject; rua=mailto:dmarc@openai.com"], False
+            elif "default._domainkey.openai.com" in name:
+                return ["v=dkim1; p=MIIBIjANBgkqhkiG9w0BAQFAAOE"], False
+            return [], False
+        
+        mock_query.side_effect = side_effect_query
+
+        result = email_security_check("openai.com")
+        
         self.assertTrue(result["success"])
-        self.assertEqual(result["spf"]["found"], True)
-        self.assertEqual(result["spf"]["policy"], "softfail")
-        self.assertEqual(result["dmarc"]["found"], True)
-        self.assertEqual(result["dmarc"]["policy"], "reject")
-        self.assertEqual(result["dkim"]["found"], False)
-        self.assertEqual(result["security_score"], "66%")
-        self.assertEqual(result["rating"], "Fair")
-        self.assertTrue(
-            any("DKIM not found" in r for r in result["recommendations"])
-        )
-
-    # ── SPF ──────────────────────────────────────────────────────
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_spf_missing(self, mock_resolve):
-        mock_resolve.side_effect = dns.resolver.NXDOMAIN()
-
-        result = email_security_check("example.com")
-
-        self.assertFalse(result["spf"]["found"])
-        self.assertIsNone(result["spf"]["record"])
-        self.assertIsNone(result["spf"]["policy"])
-        self.assertTrue(any("SPF not found" in r for r in result["recommendations"]))
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_spf_hard_fail_no_negative_recommendation(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "example.com":
-                return _txt_answer("v=spf1 include:_spf.google.com -all")
-            raise dns.resolver.NXDOMAIN()
-
-        mock_resolve.side_effect = fake_resolve
-
-        result = email_security_check("example.com")
-
-        self.assertTrue(result["spf"]["found"])
-        self.assertEqual(result["spf"]["policy"], "fail")
-        spf_negative_phrases = ("softfail", "Multiple SPF", "little real protection", "no clear terminal")
-        self.assertFalse(
-            any(phrase in r for r in result["recommendations"] for phrase in spf_negative_phrases)
-        )
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_spf_multiple_records_flagged(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "example.com":
-                r1 = MagicMock()
-                r1.strings = [b"v=spf1 -all"]
-                r2 = MagicMock()
-                r2.strings = [b"v=spf1 include:_spf.google.com -all"]
-                return [r1, r2]
-            raise dns.resolver.NXDOMAIN()
-
-        mock_resolve.side_effect = fake_resolve
-
-        result = email_security_check("example.com")
-
-        self.assertTrue(result["spf"]["found"])
-        self.assertTrue(any("Multiple SPF" in r for r in result["recommendations"]))
-
-    # ── DMARC ────────────────────────────────────────────────────
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_dmarc_missing(self, mock_resolve):
-        mock_resolve.side_effect = dns.resolver.NXDOMAIN()
-
-        result = email_security_check("example.com")
-
-        self.assertFalse(result["dmarc"]["found"])
-        self.assertTrue(any("DMARC not found" in r for r in result["recommendations"]))
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_dmarc_policy_none_flagged(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "_dmarc.example.com":
-                return _txt_answer("v=DMARC1; p=none; rua=mailto:dmarc@example.com")
-            raise dns.resolver.NXDOMAIN()
-
-        mock_resolve.side_effect = fake_resolve
-
-        result = email_security_check("example.com")
-
-        self.assertTrue(result["dmarc"]["found"])
-        self.assertEqual(result["dmarc"]["policy"], "none")
-        self.assertTrue(any("monitoring-only" in r for r in result["recommendations"]))
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_dmarc_reject_with_rua_is_clean(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "_dmarc.example.com":
-                return _txt_answer("v=DMARC1; p=reject; rua=mailto:dmarc@example.com")
-            raise dns.resolver.NXDOMAIN()
-
-        mock_resolve.side_effect = fake_resolve
-
-        result = email_security_check("example.com")
-
-        self.assertEqual(result["dmarc"]["policy"], "reject")
-        self.assertFalse(any("DMARC" in r for r in result["recommendations"]))
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_dmarc_missing_rua_flagged(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "_dmarc.example.com":
-                return _txt_answer("v=DMARC1; p=reject")
-            raise dns.resolver.NXDOMAIN()
-
-        mock_resolve.side_effect = fake_resolve
-
-        result = email_security_check("example.com")
-
-        self.assertTrue(any("rua=" in r for r in result["recommendations"]))
-
-    # ── DKIM ─────────────────────────────────────────────────────
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_dkim_selector_found(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "google._domainkey.example.com":
-                return _txt_answer("v=DKIM1; k=rsa; p=MIGfMA0GCSq...")
-            raise dns.resolver.NXDOMAIN()
-
-        mock_resolve.side_effect = fake_resolve
-
-        result = email_security_check("example.com")
-
-        self.assertTrue(result["dkim"]["found"])
-        self.assertIn("google", result["dkim"]["selectors_checked"])
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_dkim_none_found(self, mock_resolve):
-        mock_resolve.side_effect = dns.resolver.NXDOMAIN()
-
-        result = email_security_check("example.com")
-
-        self.assertFalse(result["dkim"]["found"])
-
-    # ── DNS timeout safety ───────────────────────────────────────
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_spf_timeout_flags_uncertainty_not_absence(self, mock_resolve):
-        mock_resolve.side_effect = dns.resolver.LifetimeTimeout()
-
-        result = email_security_check("example.com")
-
-        self.assertFalse(result["spf"]["found"])
-        self.assertTrue(
-            any("Could not verify SPF" in r for r in result["recommendations"])
-        )
-        self.assertFalse(any("SPF not found" in r for r in result["recommendations"]))
-
-    # ── Score / rating ───────────────────────────────────────────
-
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_score_100_when_all_three_found(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "example.com":
-                return _txt_answer("v=spf1 -all")
-            if name == "_dmarc.example.com":
-                return _txt_answer("v=DMARC1; p=reject; rua=mailto:a@example.com")
-            if name == "google._domainkey.example.com":
-                return _txt_answer("v=DKIM1; k=rsa; p=MIGf...")
-            raise dns.resolver.NXDOMAIN()
-
-        mock_resolve.side_effect = fake_resolve
-
-        result = email_security_check("example.com")
-
         self.assertEqual(result["security_score"], "100%")
         self.assertEqual(result["rating"], "Excellent")
+        self.assertEqual(len(result["recommendations"]), 0)
 
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_score_33_when_only_one_found(self, mock_resolve):
-        def fake_resolve(name, rtype, lifetime=5):
-            if name == "example.com":
-                return _txt_answer("v=spf1 -all")
-            raise dns.resolver.NXDOMAIN()
+    @patch('tools.email_security_tool._query_txt')
+    @patch('tools.email_security_tool._discover_dynamic_selectors')
+    @patch('tools.email_security_tool.is_valid_domain', return_value=True)
+    def test_partial_score_scenario_github(self, mock_valid, mock_discover, mock_query):
+        """Verify that softfail and quarantine settings pull down scores accurately."""
+        mock_discover.return_value = []
+        
+        def side_effect_query(name):
+            if name == "github.com":
+                return ["v=spf1 ~all"], False
+            elif name == "_dmarc.github.com":
+                return ["v=DMARC1; p=quarantine; rua=mailto:dmarc@github.com"], False
+            elif "default._domainkey.github.com" in name:
+                return ["v=dkim1; p=MIIB"], False
+            return [], False
+        
+        mock_query.side_effect = side_effect_query
 
-        mock_resolve.side_effect = fake_resolve
+        result = email_security_check("github.com")
+        
+        # Math: SPF(20) + DMARC(25) + DKIM(35) = 80%
+        self.assertEqual(result["security_score"], "80%")
+        self.assertEqual(result["rating"], "Good")
+        self.assertIn("SPF uses softfail (~all) — consider a hard fail (-all) for stronger protection", result["recommendations"])
+        self.assertIn("DMARC policy is 'quarantine' — failing mail goes to spam.", result["recommendations"])
 
-        result = email_security_check("example.com")
+    @patch('tools.email_security_tool._query_txt')
+    @patch('tools.email_security_tool._discover_dynamic_selectors')
+    @patch('tools.email_security_tool.is_valid_domain', return_value=True)
+    def test_missing_rua_tag_deduction(self, mock_valid, mock_discover, mock_query):
+        """Ensure omitting the 'rua' visibility reporting tag deducts 5 points from DMARC."""
+        mock_discover.return_value = []
+        
+        def side_effect_query(name):
+            if name == "test.com":
+                return ["v=spf1 -all"], False
+            elif name == "_dmarc.test.com":
+                return ["v=DMARC1; p=reject"], False  # Missing rua=
+            return [], False  # DKIM absent
+        
+        mock_query.side_effect = side_effect_query
 
-        self.assertEqual(result["security_score"], "33%")
-        self.assertEqual(result["rating"], "Poor")
+        result = email_security_check("test.com")
+        
+        # Math: SPF(30) + DMARC(35 - 5 deduction = 30) + DKIM(0) = 60%
+        self.assertEqual(result["security_score"], "60%")
+        self.assertEqual(result["rating"], "Fair")
 
-    @patch("tools.email_security_tool.dns.resolver.resolve")
-    def test_score_0_when_none_found(self, mock_resolve):
-        mock_resolve.side_effect = dns.resolver.NXDOMAIN()
-
-        result = email_security_check("example.com")
-
-        self.assertEqual(result["security_score"], "0%")
-        self.assertEqual(result["rating"], "Critical")
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

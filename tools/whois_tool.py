@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import whois
 from utils.helpers import is_valid_domain
 
@@ -10,7 +11,11 @@ def whois_lookup(domain: str) -> dict:
         if not is_valid_domain(domain):
             return {"success": False, "error": "Invalid domain format"}
 
-        result = whois.whois(domain, timeout=WHOIS_TIMEOUT_SECONDS)
+        def _fetch_whois():
+            return whois.whois(domain)
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            result = executor.submit(_fetch_whois).result(timeout=WHOIS_TIMEOUT_SECONDS)
 
         def safe_date(d):
             if d is None:
@@ -32,5 +37,7 @@ def whois_lookup(domain: str) -> dict:
             "country": result.country,
             "org": result.org
         }
+    except FuturesTimeoutError:
+        return {"success": False, "error": f"WHOIS lookup timed out after {WHOIS_TIMEOUT_SECONDS} seconds"}
     except Exception as e:
         return {"success": False, "error": str(e)}

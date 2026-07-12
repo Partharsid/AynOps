@@ -33,19 +33,32 @@ SUBDOMAIN_PREFIXES = [
     "files",
 ]
 
-def generate_bucket_names(company_name: str) -> list:
+def generate_bucket_names(company_name: str , provider: str) -> list:
     """Generate bucket names for the given company names and return list"""
-    bucket_names = []
+    if provider in ("AWS S3", "GCP"):
+        bucket_names = []
 
-    for i in COMMON_SUFFIXES:
-        if i == "":
-            bucket_names.append(company_name)
-        else:
-            x = company_name + "-" + i
-            bucket_names.append(x)
+        for i in COMMON_SUFFIXES:
+            if i == "":
+                bucket_names.append(company_name)
+            else:
+                x = company_name + "-" + i
+                bucket_names.append(x)
 
-    for i in SUBDOMAIN_PREFIXES:
-        bucket_names.append(i + "." + company_name + ".com")
+        for i in SUBDOMAIN_PREFIXES:
+            bucket_names.append(i + "." + company_name + ".com")
+    else:
+        bucket_names = []
+
+        for i in COMMON_SUFFIXES:
+            if i == "":
+                bucket_names.append(company_name)
+            else:
+                x = company_name + i
+                bucket_names.append(x)
+
+        for i in SUBDOMAIN_PREFIXES:
+            bucket_names.append(i + company_name)
 
     bucket_names = list(dict.fromkeys(bucket_names))
     return bucket_names
@@ -96,11 +109,14 @@ def url_response(url: str) -> dict:
 def check_provider(bucket, provider):
     """Build url with bucket names and cloud provider , then send url for checking to url_response"""
     if provider == "AWS S3":
-        url = "https://" + bucket + ".s3.amazonaws.com/"
+        if "." in bucket:
+            url = f"https://s3.amazonaws.com/{bucket}/"
+        else:
+            url = f"https://{bucket}.s3.amazonaws.com/"
     elif provider == "GCP":
-        url = "https://storage.googleapis.com/" + bucket + "/"
+        url = f"https://storage.googleapis.com/{bucket}/"
     elif provider == "AZURE":
-        url = "https://" + bucket + ".blob.core.windows.net/" + bucket + "?restype=container&comp=list"
+        url =f"https://{bucket}.blob.core.windows.net/{bucket}?restype=container&comp=list"  
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
@@ -117,13 +133,20 @@ def cloud_exposure_check(domain: str) -> dict:
         return {"success": False, "error": "Invalid domain format"}
     
     company_name = tldextract.extract(domain).domain
-    bucket_names = generate_bucket_names(company_name)
-    providers = ["AWS S3" , "GCP" , "AZURE"]
+    default_buckets = generate_bucket_names(company_name, "AWS S3")
+    azure_buckets = generate_bucket_names(company_name, "AZURE")
 
     findings = []
 
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(check_provider, bucket, provider) for bucket in bucket_names for provider in providers]
+        futures = []
+        for bucket in default_buckets:
+            futures.append(executor.submit(check_provider , bucket , "AWS S3"))
+            futures.append(executor.submit(check_provider , bucket , "GCP"))
+
+        for bucket in azure_buckets:
+            futures.append(executor.submit(check_provider , bucket , "AZURE"))
+
         for future in as_completed(futures):
             try:
                 findings.append(future.result())
@@ -140,7 +163,7 @@ def cloud_exposure_check(domain: str) -> dict:
     return {
         "success": True,
         "domain": domain ,
-        "buckets_checked": len(bucket_names) * 3 ,
+        "buckets_checked": len(default_buckets) * 2 + len(azure_buckets) ,
         "findings": findings ,
         "total_exposed": total_exposed,
         "total_private": total_private,

@@ -13,17 +13,28 @@ from tools.cloud_exposure_tool import (
 
 def test_generate_bucket_names_basic():
     company = "google"
-    names = generate_bucket_names(company)
+    # Testing AWS/GCP logic branches using the positional fallback format
+    names = generate_bucket_names(company, "AWS S3")
     
     assert company in names
     assert f"{company}-backup" in names
     assert f"backup.{company}.com" in names
+    
+    # Combined rules check
     expected_count = len(COMMON_SUFFIXES) + len(SUBDOMAIN_PREFIXES)
     assert len(names) == expected_count
 
+def test_generate_bucket_names_azure_fallback():
+    company = "google"
+    names = generate_bucket_names(company, "AZURE")
+    
+    assert company in names
+    assert f"{company}backup" in names
+    assert f"backup{company}" in names
+
 def test_generate_bucket_names_uniqueness():
     # Duplicates should be filtered out by dict.fromkeys()
-    names = generate_bucket_names("test")
+    names = generate_bucket_names("test", "AWS S3")
     assert len(names) == len(set(names))
 
 @patch("tools.cloud_exposure_tool.requests.get")
@@ -53,6 +64,16 @@ def test_url_response_not_found(mock_get):
     # Simulate a 404 Not Found Response
     mock_response = MagicMock()
     mock_response.status_code = 404
+    mock_get.return_value = mock_response
+    
+    result = url_response("https://example.s3.amazonaws.com/")
+    assert result["status"] == "NOT_FOUND"
+
+@patch("tools.cloud_exposure_tool.requests.get")
+def test_url_response_fallback_to_not_found(mock_get):
+    # Simulate an unexpected status code like 500, which maps to NOT_FOUND in original code
+    mock_response = MagicMock()
+    mock_response.status_code = 500
     mock_get.return_value = mock_response
     
     result = url_response("https://example.s3.amazonaws.com/")
@@ -127,5 +148,6 @@ def test_cloud_exposure_check_success_and_aggregates(mock_check_provider, mock_i
     assert result["domain"] == "testcompany.com"
     assert result["total_exposed"] == 1
     assert result["total_private"] == 1
+    
     expected_not_found = result["buckets_checked"] - 2
     assert result["total_not_found"] == expected_not_found

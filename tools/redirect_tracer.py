@@ -150,12 +150,6 @@ def trace_redirects(url: str) -> dict:
                         "hop": hop_number, "type": "tls_downgrade", "severity": "critical",
                         "description": f"Downgrades from HTTPS to HTTP: {current_url} -> {next_url}",
                     })
-                elif current_parsed.scheme == "http" and next_parsed.scheme == "http":
-                    hop_issues.append("HTTP to HTTP redirect (no TLS upgrade)")
-                    issues_found.append({
-                        "hop": hop_number, "type": "no_tls_upgrade", "severity": "high",
-                        "description": f"Stays on HTTP, never upgrades to HTTPS: {current_url} -> {next_url}",
-                    })
 
                 is_private_target = _hostname_is_private_ip(next_parsed.hostname)
                 if is_private_target:
@@ -226,6 +220,23 @@ def trace_redirects(url: str) -> dict:
     # hitting the hop cap mid-redirect), that discovered destination is
     # the true final URL, not just the last URL actually fetched.
     final_url = (chain[-1].get("redirect_to") or chain[-1]["url"]) if chain else original_url
+
+    # Evaluated against the whole chain, not per-hop. An intermediate
+    # http hop that later upgrades to https should not be flagged, only
+    # a chain that never reaches https anywhere should be.
+    if original_url.startswith("http://") and not any(
+        hop["url"].startswith("https://") or (hop.get("redirect_to") or "").startswith("https://")
+        for hop in chain
+    ):
+        issues_found.append({
+            "hop": None,
+            "type": "no_tls_upgrade",
+            "severity": "high",
+            "description": (
+                f"The chain starting at {original_url} never reaches HTTPS at any "
+                f"point (ended at {final_url})."
+            ),
+        })
 
     security_notes = []
     has_downgrade = any(i["type"] == "tls_downgrade" for i in issues_found)

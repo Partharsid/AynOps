@@ -105,6 +105,23 @@ class TestTraceRedirects(unittest.TestCase):
         self.assertEqual(no_upgrade[0]["severity"], "high")
 
     @patch("tools.redirect_tracer.requests.Session.get")
+    def test_intermediate_http_hop_that_later_upgrades_is_not_flagged(self, mock_get):
+        """Regression test: http -> http -> https must NOT be flagged as
+        no_tls_upgrade just because the first hop stayed on http. Matches
+        real-world chains like http://google.com -> http://www.google.com/
+        -> https://www.google.com/?gws_rd=ssl, where the chain does
+        eventually reach https."""
+        mock_get.side_effect = [
+            _resp(301, {"Location": "http://www.example.com/"}),
+            _resp(302, {"Location": "https://www.example.com/?upgraded=1"}),
+            _resp(200),
+        ]
+        result = trace_redirects("http://example.com")
+        no_upgrade = [i for i in result["issues_found"] if i["type"] == "no_tls_upgrade"]
+        self.assertEqual(len(no_upgrade), 0)
+        self.assertEqual(result["final_url"], "https://www.example.com/?upgraded=1")
+
+    @patch("tools.redirect_tracer.requests.Session.get")
     def test_https_to_http_downgrade_flagged_critical(self, mock_get):
         mock_get.side_effect = [
             _resp(301, {"Location": "http://example.com/insecure"}),
@@ -124,6 +141,18 @@ class TestTraceRedirects(unittest.TestCase):
         result = trace_redirects("https://example.com")
         self.assertFalse(any(i["type"] in ("tls_downgrade", "no_tls_upgrade") for i in result["issues_found"]))
         self.assertIn("Chain stayed on HTTPS throughout — good", result["security_notes"])
+
+    @patch("tools.redirect_tracer.requests.Session.get")
+    def test_https_discovered_but_not_fetched_still_counts_as_reaching_https(self, mock_get):
+        """A chain that hits the hop cap right as it discovers an https
+        target (never actually fetched) should still not be flagged as
+        no_tls_upgrade. It DID reach https, just not within budget."""
+        hops = [_resp(301, {"Location": f"http://example.com/page{i}"}) for i in range(14)]
+        hops.append(_resp(301, {"Location": "https://example.com/final"}))
+        mock_get.side_effect = hops
+        result = trace_redirects("http://example.com")
+        no_upgrade = [i for i in result["issues_found"] if i["type"] == "no_tls_upgrade"]
+        self.assertEqual(len(no_upgrade), 0)
 
     # ------------------------------------------------------------------
     # Private IP detection

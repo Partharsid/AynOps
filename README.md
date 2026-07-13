@@ -122,7 +122,6 @@ If `uv` is not installed, install it using:
 pip install uv
 ```
 
-/
 
 ### Step 3 — Install Nmap
 

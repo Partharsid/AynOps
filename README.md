@@ -50,8 +50,8 @@ It is also listed on glama mcp registry.
 | `asn_lookup` | Autonomous System Number (ASN) and network ownership lookup — identifies hosting provider, ISP, organization, geolocation, and infrastructure ownership for domains or IP addresses |
 | `cve_lookup` | Search NVD for known CVEs by software name and version (no API key required) |
 | `ip_reputation` | Check if an IP is flagged as malicious via AbuseIPDB (api key requied) |
-| `cloud_exposure_tool` | Checks for publicly accessible AWS S3, Azure Blob Storage, and Google Cloud Storage buckets using common bucket naming patterns derived from the target domain.|
 | `full_recon` | Runs all core tools in parallel and returns combined results with claude analysis |
+| `cloud_exposure_tool` | Checks for publicly accessible AWS S3, Azure Blob Storage, and Google Cloud Storage buckets using common bucket naming patterns derived from the target domain. (Not included in full_recon ) |
 
 ---
 

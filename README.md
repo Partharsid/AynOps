@@ -51,6 +51,7 @@ It is also listed on glama mcp registry.
 | `full_recon` | Runs all core tools in parallel and returns combined results with claude analysis |
 | `headers_analyzer` | Analyzes HTTP security headers — checks HSTS, CSP, X-Frame-Options, and more with severity ratings and misconfiguration details (Not included in full_recon) |
 | `cve_lookup` | Search NVD for known CVEs by software name and version (no API key required) (Not included in full_recon) |
+| `cloud_exposure_tool` | Checks for publicly accessible AWS S3, Azure Blob Storage, and Google Cloud Storage buckets using common bucket naming patterns derived from the target domain. (Not included in full_recon ) |
 
 ---
 
@@ -223,6 +224,7 @@ Look up CVEs for apache 2.4.49
 Look up CVEs for log4j 2.14.1
 Check the reputation of IP 1.2.3.4
 ASN Lookup for google.com
+Does example.com have any exposed cloud storage?
 ```
 
 ### Port scan types

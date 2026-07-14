@@ -51,6 +51,7 @@ It is also listed on glama mcp registry.
 | `asn_lookup` | Autonomous System Number (ASN) and network ownership lookup — identifies hosting provider, ISP, organization, geolocation, and infrastructure ownership for domains or IP addresses |
 | `ip_reputation` | Check if an IP is flagged as malicious via AbuseIPDB (api key requied) |
 | `full_recon` | Runs all core tools in parallel and returns combined results with claude analysis |
+| `trace_redirects` | Traces the full HTTP redirect chain hop by hop — flags TLS downgrades, private-IP leaks, redirect loops, cross-domain hops, and overly long chains |
 
 ### Standalone Tools
 

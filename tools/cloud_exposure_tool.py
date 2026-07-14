@@ -1,6 +1,7 @@
 from utils.helpers import is_valid_domain
 import tldextract
 import requests
+import re
 from concurrent.futures import ThreadPoolExecutor , as_completed
 
 COMMON_SUFFIXES = [
@@ -33,6 +34,14 @@ SUBDOMAIN_PREFIXES = [
     "files",
 ]
 
+def _sanitize_for_azure(name: str) -> str:
+    """Azure storage account names allow only lowercase letters and
+    digits; no hyphens, dots, or any other punctuation. A company
+    name that itself contains a hyphen (e.g. "coca-cola") must be
+    stripped here too, not just the suffix separator, or every
+    generated candidate is still an invalid account name."""
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
 def generate_bucket_names(company_name: str , provider: str) -> list:
     """Generate bucket names for the given company names and return list"""
     if provider in ("AWS S3", "GCP"):
@@ -49,16 +58,17 @@ def generate_bucket_names(company_name: str , provider: str) -> list:
             bucket_names.append(i + "." + company_name + ".com")
     else:
         bucket_names = []
+        azure_company_name = _sanitize_for_azure(company_name)
 
         for i in COMMON_SUFFIXES:
             if i == "":
-                bucket_names.append(company_name)
+                bucket_names.append(azure_company_name)
             else:
-                x = company_name + i
+                x = azure_company_name + i
                 bucket_names.append(x)
 
         for i in SUBDOMAIN_PREFIXES:
-            bucket_names.append(i + company_name)
+            bucket_names.append(i + azure_company_name)
 
     bucket_names = list(dict.fromkeys(bucket_names))
     return bucket_names

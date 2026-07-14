@@ -32,6 +32,17 @@ def test_generate_bucket_names_azure_fallback():
     assert f"{company}backup" in names
     assert f"backup{company}" in names
 
+def test_generate_bucket_names_azure_sanitizes_hyphenated_company_name():
+    """Regression test: a company name that itself contains a hyphen
+    (e.g. domain "coca-cola.com" -> company_name "coca-cola") must be
+    sanitized before use, since Azure storage account names allow only
+    lowercase letters and digits. Fixing just the suffix separator
+    isn't enough if the hyphen is baked into the company name itself."""
+    names = generate_bucket_names("my-company", "AZURE")
+    assert all("-" not in n and "." not in n for n in names)
+    assert "mycompany" in names
+    assert "mycompanybackup" in names
+
 def test_generate_bucket_names_uniqueness():
     # Duplicates should be filtered out by dict.fromkeys()
     names = generate_bucket_names("test", "AWS S3")
@@ -96,6 +107,19 @@ def test_check_provider_aws(mock_url_response):
     assert result["provider"] == "AWS S3"
     assert result["bucket_name"] == "mybucket"
     mock_url_response.assert_called_once_with("https://mybucket.s3.amazonaws.com/")
+
+@patch("tools.cloud_exposure_tool.url_response")
+def test_check_provider_aws_dotted_bucket_uses_path_style(mock_url_response):
+    """Regression test: a dotted bucket name (e.g. assets.example.com) must
+    use path-style, not virtual-hosted-style, or AWS's wildcard cert
+    (*.s3.amazonaws.com) fails SSL hostname verification and the check
+    always returns ERROR without ever really checking the bucket."""
+    mock_url_response.return_value = {"status": "NOT_FOUND", "severity": "INFO", "note": "x"}
+
+    result = check_provider("assets.example.com", "AWS S3")
+    assert result["provider"] == "AWS S3"
+    assert result["bucket_name"] == "assets.example.com"
+    mock_url_response.assert_called_once_with("https://s3.amazonaws.com/assets.example.com/")
 
 @patch("tools.cloud_exposure_tool.url_response")
 def test_check_provider_gcp(mock_url_response):

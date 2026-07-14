@@ -37,21 +37,29 @@ It is also listed on glama mcp registry.
 
 ## Tools Available
 
+### Included in `full_recon`
+
 | Tool | Description |
 |---|---|
 | `whois_lookup` | Domain registration data — owner, registrar, creation date, expiry, name servers |
 | `dns_enumeration` | A, AAAA, MX, NS, TXT, CNAME, SOA records + common subdomain brute-forcing |
 | `port_scan` | Nmap-powered scanner with service/version detection and security warnings |
 | `ssl_inspect` | SSL/TLS certificate — issuer, expiry, cipher strength, SANs, TLS version |
-| `headers_analyzer` | Analyzes HTTP security headers — checks HSTS, CSP, X-Frame-Options, and more with severity ratings and misconfiguration details |
 | `email_security_check` | Checks SPF, DKIM, and DMARC DNS records — returns a security_score, rating, and actionable recommendations for missing or weak configurations |
 | `tech_stack_detect` | Web server, CMS, JS frameworks, CDN, analytics, and security header scoring |
 | `cert_transparency` | Subdomain discovery via crt.sh Certificate Transparency logs with an automatic fallback to HackerTarget passive DNS on timeouts |
 | `asn_lookup` | Autonomous System Number (ASN) and network ownership lookup — identifies hosting provider, ISP, organization, geolocation, and infrastructure ownership for domains or IP addresses |
-| `cve_lookup` | Search NVD for known CVEs by software name and version (no API key required) |
 | `ip_reputation` | Check if an IP is flagged as malicious via AbuseIPDB (api key requied) |
 | `full_recon` | Runs all core tools in parallel and returns combined results with claude analysis |
 | `trace_redirects` | Traces the full HTTP redirect chain hop by hop — flags TLS downgrades, private-IP leaks, redirect loops, cross-domain hops, and overly long chains |
+
+### Standalone Tools
+
+| Tool | Description |
+|---|---|
+| `headers_analyzer` | Analyzes HTTP security headers — checks HSTS, CSP, X-Frame-Options, and more with severity ratings and misconfiguration details |
+| `cve_lookup` | Search NVD for known CVEs by software name and version (no API key required) |
+| `cloud_exposure_tool` | Checks for publicly accessible AWS S3, Azure Blob Storage, and Google Cloud Storage buckets using common bucket naming patterns derived from the target domain |
 
 ---
 
@@ -99,8 +107,7 @@ Claude: [calls full_recon → runs all core tools in parallel → delivers full 
 - **Claude Desktop** — [download](https://claude.ai/download)
 - **Nmap** — required for port scanning ([download](https://nmap.org/download.html))
 - **Git** — [download](https://git-scm.com/)
-
----
+- **uv** - [download](https://docs.astral.sh/uv/getting-started/installation)
 
 ## ⚙️ Installation
 
@@ -111,11 +118,17 @@ git clone https://github.com/AynOps/AynOps
 cd AynOps
 ```
 
-### Step 2 — Install Python dependencies
+### Step 2 — Create virtual environment and install dependencies
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
+If `uv` is not installed, install it using:
+
+```bash
+pip install uv
+```
+
 
 ### Step 3 — Install Nmap
 
@@ -224,6 +237,7 @@ Look up CVEs for apache 2.4.49
 Look up CVEs for log4j 2.14.1
 Check the reputation of IP 1.2.3.4
 ASN Lookup for google.com
+Does example.com have any exposed cloud storage?
 ```
 
 ### Port scan types
@@ -280,6 +294,10 @@ Intended for:
 ├── .github/              # GitHub Actions workflows and templates
 ├── tests/                # Unit tests
 ├── tools/                # MCP tool implementations
+  ├── prompts/            # AI prompt templates
+  ├── signals/            # Signal extraction framework used by full_recon
+    ├── registry.py       # Registers tools and their signal extractors
+    └── extractor.py      # Executes all registered extractors and aggregates signals
 ├── utils/                # Shared helper utilities
 ├── server.py             # MCP server entry point
 ├── pyproject.toml        # Project metadata and dependencies

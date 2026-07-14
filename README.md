@@ -51,7 +51,7 @@ It is also listed on glama mcp registry.
 | `asn_lookup` | Autonomous System Number (ASN) and network ownership lookup — identifies hosting provider, ISP, organization, geolocation, and infrastructure ownership for domains or IP addresses |
 | `ip_reputation` | Check if an IP is flagged as malicious via AbuseIPDB (api key requied) |
 | `full_recon` | Runs all core tools in parallel and returns combined results with claude analysis |
-| `trace_redirects` | Traces the full HTTP redirect chain hop by hop — flags TLS downgrades, private-IP leaks, redirect loops, cross-domain hops, and overly long chains |
+
 
 ### Standalone Tools
 
@@ -60,6 +60,7 @@ It is also listed on glama mcp registry.
 | `headers_analyzer` | Analyzes HTTP security headers — checks HSTS, CSP, X-Frame-Options, and more with severity ratings and misconfiguration details |
 | `cve_lookup` | Search NVD for known CVEs by software name and version (no API key required) |
 | `cloud_exposure_tool` | Checks for publicly accessible AWS S3, Azure Blob Storage, and Google Cloud Storage buckets using common bucket naming patterns derived from the target domain |
+| `trace_redirects` | Traces the full HTTP redirect chain hop by hop — flags TLS downgrades, private-IP leaks, redirect loops, cross-domain hops, and overly long chains |
 
 ---
 

@@ -50,7 +50,7 @@ It is also listed on glama mcp registry.
 | `cert_transparency` | Subdomain discovery via crt.sh Certificate Transparency logs with an automatic fallback to HackerTarget passive DNS on timeouts |
 | `asn_lookup` | Autonomous System Number (ASN) and network ownership lookup — identifies hosting provider, ISP, organization, geolocation, and infrastructure ownership for domains or IP addresses |
 | `ip_reputation` | Check if an IP is flagged as malicious via AbuseIPDB (api key requied) |
-| `full_recon` | Runs all core tools in parallel and returns combined results with claude analysis |
+| `full_recon` | Runs all core tools in parallel and returns combined result |
 
 ### Standalone Tools
 
@@ -60,6 +60,11 @@ It is also listed on glama mcp registry.
 | `cve_lookup` | Search NVD for known CVEs by software name and version (no API key required) |
 | `cloud_exposure_check` | Checks for publicly accessible AWS S3, Azure Blob Storage, and Google Cloud Storage buckets using common bucket naming patterns derived from the target domain |
 | `trace_redirects` | Traces the full HTTP redirect chain hop by hop — flags TLS downgrades, private-IP leaks, redirect loops, cross-domain hops, and overly long chains |
+
+## Prompts Available
+| Prompt | Description |
+|---|---|
+| `threat_analysis` | Generate a threat analysis prompt for the `full_recon` tool |
 
 ---
 
@@ -256,8 +261,22 @@ Scan scanme.nmap.org with service detection
 
 ### Full recon
 
+For getting best summarized result for the full_recon tool output, please use the prompt `threat_analysis` ( if your MCP client support ) by following these steps:
+
+> **Note:** Prompt support and automatic prompt chaining vary between MCP clients. Future client updates may improve this workflow.
+
+For Claude Desktop:
+1. Start Claude Desktop
+2. Click on the `+` icon
+3. Click on `connectors`
+4. If the AynOps is connected, it will show the option for `Add from AynOps`.
+5. Then choose the prompt `threat_analysis`
+6. Claude will use the selected prompt to generate a correlated threat intelligence report.
+
+After this ask this example prompt:
+
 ```
-Do a complete security recon on reddit.com
+Do a complete security recon on scanme.nmap.org
 ```
 
 Claude will run all core tools in parallel and deliver a full security analysis.
@@ -270,6 +289,20 @@ What do the open ports mean from an attacker's perspective?
 Is this SSL configuration strong enough for a financial services company?
 Cross-reference the open ports with known CVEs for the detected services.
 ```
+
+## ⚠️ Important: LLM Client Behavior
+
+AynOps is an **MCP server**, which means tool execution is orchestrated by your MCP client (e.g., Claude Desktop, Cursor, VS Code, etc.), not by AynOps itself.
+
+### Tool execution may vary
+
+Some LLM clients perform safety checks before invoking MCP tools. As a result, requests such as:
+
+> "Run a full security recon on example.com"
+
+may be allowed in one conversation but declined in another, even when using the same server.
+
+This behavior is determined by the **LLM client**, not by AynOps.
 
 ## ⚠️ Legal & Ethical Usage
 

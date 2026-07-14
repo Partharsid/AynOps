@@ -117,14 +117,12 @@ def test_full_recon_invalid_domain(mock_is_valid):
     mock_is_valid.assert_called_once_with("invalid_domain!!")
 
 
-@patch("tools.fullrecon_tool.THREAT_ANALYSIS_PROMPT")
 @patch("tools.fullrecon_tool.extract_signals")
 @patch("tools.fullrecon_tool.TOOL_REGISTRY")
 @patch("tools.fullrecon_tool.is_valid_domain")
-def test_full_recon_success(mock_is_valid, mock_registry, mock_extract, mock_prompt):
+def test_full_recon_success(mock_is_valid, mock_registry, mock_extract):
     """Simulates a completely successful run across multiple dependency waves."""
     mock_is_valid.return_value = True
-    mock_prompt.format.return_value = "Formatted AI Prompt String"
     mock_extract.return_value = {"open_ports": [], "software_detected": []}
 
     # Define mock execution actions for tools

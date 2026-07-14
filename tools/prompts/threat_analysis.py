@@ -2,7 +2,7 @@
 
 THREAT_ANALYSIS_PROMPT = """\
 You are a senior penetration tester reviewing raw reconnaissance data collected
-from 10 automated tools about the target domain below.
+from all the automated tools about the target domain below.
 
 YOUR JOB IS CORRELATION, NOT ENUMERATION.
 Do NOT summarise each tool individually.
@@ -19,8 +19,8 @@ Follow this exact output structure — no prose outside it:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🛡️  AynOps Threat Intelligence Report
-Target : {domain}
-Scanned: {scanned_at}
+Target : domain ( Add domain from the tool output )
+Scanned: scanned_at ( Add scanned_at from the tool output )
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ## Executive Summary
@@ -76,7 +76,7 @@ Risk Level: CRITICAL (80–100) / HIGH (60–79) / MEDIUM (40–59) / LOW (0–3
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PRE-EXTRACTED SIGNALS (use these; do not re-derive from raw JSON):
-{signals_block}
+signals_block ( Add signals_block from the tool output )
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 EVIDENCE QUALITY RULES — follow these strictly:

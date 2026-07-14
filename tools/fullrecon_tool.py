@@ -4,7 +4,6 @@ from utils.helpers import is_valid_domain
 from tools.signals.extractor import extract_signals
 import concurrent.futures
 from datetime import datetime, timezone
-from tools.prompts.threat_analysis import THREAT_ANALYSIS_PROMPT
 
 def _format_signals_block(signals: dict) -> str:
     """Format extracted signals into a human-readable summary for the threat analysis prompt"""
@@ -149,5 +148,5 @@ def full_recon(domain: str) -> dict:
         },
         "raw_results": results,
         "pre_extracted_signals": signals,
-        "instructions": THREAT_ANALYSIS_PROMPT.format(domain=domain, scanned_at=scanned_at, signals_block=_format_signals_block(signals))
+        "signals_block":_format_signals_block(signals)
     }
